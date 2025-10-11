@@ -182,7 +182,7 @@ public class PlayerController : MonoBehaviour
             }
             else
             {
-                // Mid-air but near the peak (neither rising nor falling strongly)
+                
                 animator.SetBool(jumpAnimParam, true);
             }
         }

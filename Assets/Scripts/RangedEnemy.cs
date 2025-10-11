@@ -12,10 +12,15 @@ public class EnemyMortarShooter : MonoBehaviour
     public Transform firePoint;
     public float launchAngle = 45f; // degrees
     public float gravity = 9.81f;
-    public float shootInterval = 1f; // seconds between shots
+    public float shootInterval = 1.5f; 
+
+    [Header("Animation")]
+    public Animator animator;
+    public string throwAnimParam = "Throw";
 
     private Transform player;
     private bool isShooting = false;
+    private bool isFacingRight = true;
 
     void Start()
     {
@@ -32,17 +37,44 @@ public class EnemyMortarShooter : MonoBehaviour
 
         float distance = Vector2.Distance(transform.position, player.position);
 
-        // If player in range and not already shooting, start coroutine
+        // Always face player if in range
+        if (distance <= detectionRadius)
+            FacePlayer();
+
+        // Start/stop shooting based on range
         if (distance <= detectionRadius && !isShooting)
         {
             StartCoroutine(ShootRoutine());
         }
-        // If player left the range, stop shooting
         else if (distance > detectionRadius && isShooting)
         {
             StopAllCoroutines();
             isShooting = false;
         }
+    }
+
+    void FacePlayer()
+    {
+        if (player == null) return;
+
+        
+        if (player.position.x < transform.position.x && !isFacingRight)
+        {
+            Flip();
+        }
+        else if (player.position.x > transform.position.x && isFacingRight)
+        {
+            Flip();
+        }
+    }
+
+
+    void Flip()
+    {
+        isFacingRight = !isFacingRight;
+        Vector3 scale = transform.localScale;
+        scale.x *= -1;
+        transform.localScale = scale;
     }
 
     IEnumerator ShootRoutine()
@@ -51,18 +83,18 @@ public class EnemyMortarShooter : MonoBehaviour
 
         while (true)
         {
-            LaunchMortar();
+            if (animator != null && !string.IsNullOrEmpty(throwAnimParam))
+                animator.SetTrigger(throwAnimParam);
+
             yield return new WaitForSeconds(shootInterval);
         }
     }
 
-    void LaunchMortar()
+    
+    public void LaunchMortar()
     {
-        if (projectilePrefab == null || firePoint == null)
-        {
-            Debug.LogWarning("⚠️ Missing projectilePrefab or firePoint on " + name);
+        if (projectilePrefab == null || firePoint == null || player == null)
             return;
-        }
 
         Vector2 targetPos = player.position;
         Vector2 startPos = firePoint.position;
@@ -76,8 +108,6 @@ public class EnemyMortarShooter : MonoBehaviour
         if (v2 <= 0) return;
 
         float velocity = Mathf.Sqrt(v2);
-
-        // Decompose velocity
         float vx = velocity * Mathf.Cos(angleRad) * Mathf.Sign(direction.x);
         float vy = velocity * Mathf.Sin(angleRad);
 
