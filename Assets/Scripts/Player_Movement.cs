@@ -2,14 +2,14 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movement")]
+    [Header("Movement Settings")]
     public float moveSpeed = 7f;
     public float acceleration = 50f;
     public float deceleration = 50f;
     public float airAcceleration = 35f;
     public float airDeceleration = 35f;
 
-    [Header("Jumping")]
+    [Header("Jump Settings")]
     public float jumpForce = 15f;
     public float fallMultiplier = 2.5f;
     public float lowJumpMultiplier = 2f;
@@ -22,24 +22,26 @@ public class PlayerController : MonoBehaviour
     public float groundCheckRadius = 0.2f;
     public LayerMask groundLayer;
 
-    [Header("Animation")]
+    [Header("Animation Settings")]
     public Animator animator;
+    public string idleAnimParam = "Idle";
+    public string walkAnimParam = "Walk";
+    public string jumpAnimParam = "Jump";
+    public string fallAnimParam = "Fall";
 
     private Rigidbody2D rb;
     private float horizontalInput;
     private bool isGrounded;
+    private bool isFacingRight = true;
     private int jumpsRemaining;
     private float coyoteTimeCounter;
     private float jumpBufferCounter;
-    private bool isFacingRight = true;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         if (animator == null)
-        {
             animator = GetComponent<Animator>();
-        }
     }
 
     void Update()
@@ -60,39 +62,31 @@ public class PlayerController : MonoBehaviour
         HandleBetterJump();
     }
 
+    #region Movement and Jump Logic
+
     void CheckGroundStatus()
     {
         bool wasGrounded = isGrounded;
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
         if (!wasGrounded && isGrounded)
-        {
             jumpsRemaining = maxJumps;
-        }
     }
 
     void HandleCoyoteTime()
     {
         if (isGrounded)
-        {
             coyoteTimeCounter = coyoteTime;
-        }
         else
-        {
             coyoteTimeCounter -= Time.deltaTime;
-        }
     }
 
     void HandleJumpBuffer()
     {
         if (Input.GetButtonDown("Jump"))
-        {
             jumpBufferCounter = jumpBufferTime;
-        }
         else
-        {
             jumpBufferCounter -= Time.deltaTime;
-        }
     }
 
     void HandleJump()
@@ -146,13 +140,9 @@ public class PlayerController : MonoBehaviour
     void HandleFlip()
     {
         if (horizontalInput > 0 && !isFacingRight)
-        {
             Flip();
-        }
         else if (horizontalInput < 0 && isFacingRight)
-        {
             Flip();
-        }
     }
 
     void Flip()
@@ -163,15 +153,62 @@ public class PlayerController : MonoBehaviour
         transform.localScale = scale;
     }
 
+    #endregion
+
+    #region Animation Logic
+
     void UpdateAnimations()
     {
-        if (animator != null)
+        if (animator == null) return;
+
+        // Reset all to false first (simple way to control state manually)
+        animator.SetBool(idleAnimParam, false);
+        animator.SetBool(walkAnimParam, false);
+        animator.SetBool(jumpAnimParam, false);
+
+        if (!isGrounded)
         {
-            animator.SetFloat("Speed", Mathf.Abs(rb.linearVelocity.x));
-            animator.SetFloat("VelocityY", rb.linearVelocity.y);
-            animator.SetBool("IsGrounded", isGrounded);
+            if (rb.linearVelocity.y > 0.1f)
+            {
+                // Going up
+                animator.SetBool(jumpAnimParam, true);
+
+            }
+            else if (rb.linearVelocity.y < -0.1f)
+            {
+                // Going down
+                animator.SetBool(fallAnimParam, true);
+                animator.SetBool(jumpAnimParam, false);
+            }
+            else
+            {
+                // Mid-air but near the peak (neither rising nor falling strongly)
+                animator.SetBool(jumpAnimParam, true);
+            }
         }
+
+        
+        else
+        {
+            animator.SetBool(fallAnimParam, false);
+            animator.SetBool(jumpAnimParam, false);
+            if (Mathf.Abs(horizontalInput) > 0.1f)
+            {
+                animator.SetBool(walkAnimParam, true);
+                animator.SetBool(idleAnimParam, false);
+            }
+            else
+            {
+                animator.SetBool(jumpAnimParam, false);
+                animator.SetBool(idleAnimParam, true);
+                animator.SetBool(walkAnimParam, false);
+                animator.SetBool(fallAnimParam, false);
+            }
+        }
+        
     }
+
+    #endregion
 
     void OnDrawGizmosSelected()
     {
